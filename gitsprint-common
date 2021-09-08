@@ -1,0 +1,16 @@
+#
+# Common functionality
+#
+
+# Shell output
+warn() { echo "$@" >&2; }
+die() { warn "Fatal: $@"; exit 1; }
+die_help() { warn $@; flags_help; exit 1; }
+
+escape() {
+    echo "$1" | sed 's/\([\.\$\*]\)/\\\1/g'
+}
+
+flags_help() {
+	eval "$( echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- "-h" || echo exit $? )"
+}

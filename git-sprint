@@ -1,0 +1,89 @@
+#!/bin/sh
+#
+# enable debug mode
+if [ "$DEBUG" = "yes" ]; then
+	set -x
+fi
+
+# Setup the GITSPRINT_DIR for different operating systems.
+# This is mostly to make sure that we get the correct directory when the
+# git-sprint file is a symbolic link
+case $(uname -s) in
+Linux)
+	export GITSPRINT_DIR=$(dirname "$(readlink -e "$0")")
+	;;
+FreeBSD|OpenBSD|NetBSD)
+	export FLAGS_GETOPT_CMD='/usr/local/bin/getopt'
+	export GITSPRINT_DIR=$(dirname "$(realpath "$0")")
+	;;
+Darwin)
+	PRG="$0"
+	while [ -h "$PRG" ]; do
+		link=$(readlink "$PRG")
+		if expr "$link" : '/.*' > /dev/null; then
+			PRG="$link"
+		else
+			PRG="$(dirname "$PRG")/$link"
+		fi
+	done
+	export GITSPRINT_DIR=$(dirname "$PRG")
+	;;
+*MINGW*)
+	export GITSPRINT_DIR=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+	pwd () {
+		builtin pwd -W
+	}
+	;;
+*)
+	# The sed expression here replaces all backslashes by forward slashes.
+	# This helps our Windows users, while not bothering our Unix users.)
+	export GITSPRINT_DIR=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
+	;;
+esac
+
+# Extra environment settings
+if [ -f ~/.gitflow_export ]; then
+	if grep -E 'GITSPRINT_FLAG_(SHOWCOMMANDS)' ~/.gitsprint_export > /dev/null; then
+		echo "Using environment variables for \"showcommands\" in ~/.gitsprint_export has deprecated, use git config instead."
+		echo ""
+		exit 1;
+	else
+		. ~/.gitsprint_export
+	fi
+fi
+
+usage() {
+    echo "usage: git sprint <subcommand>"
+    echo 
+    echo "Available subcommands are:"
+    echo "    version   Shows version information."
+    echo
+    echo "Try 'git sprint <subcommand> help' for details."
+}
+
+main() {
+    if [ $# -lt 1 ]; then
+        usage
+        exit 1
+    fi
+
+    # Use the shFlags project to parse the command line arguments
+	. "$GITFLOW_DIR/gitsprint-shFlags"
+	FLAGS_PARENT="git sprint"
+
+	# Load common functionality
+	. "$GITFLOW_DIR/gitsprint-common"
+
+	# allow user to request git action logging
+	DEFINE_boolean 'showcommands' false 'Show actions taken (git commands)'
+	# but if the user prefers that the logging is always on,
+	# use the environmental variables.
+	gitsprint_override_flag_boolean 'showcommands' 'showcommands'
+
+	# Sanity checks
+	SUBCOMMAND="$1"; shift
+    if [ "${SUBCOMMAND}" = "create" ] || [ "${SUBDOMMAND}" = "end" ]; then
+        _current_branch=$(git_current_branch)
+    fi
+}
+main "$@"
