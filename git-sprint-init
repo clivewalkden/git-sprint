@@ -1,0 +1,69 @@
+usage() {
+    OPTIONS_SPEC="\
+git sprint init
+
+Initialize a new git repo with support for the sprint methods.
+
+For more specific help type the command followed bu --help
+--
+"
+    flags_help
+}
+
+parse_args() {
+    FLAGS "$@" || exit $?
+    eval set -- "${FLAGS_ARGV}"
+}
+
+cmd_default() {
+    OPTIONS_SPEC="\
+git sprint init [-h] [-f]
+
+Setup a git repository for git sprint usage. Can also be used to start a git repository.
+--
+h,help!         Show this help
+showcommands!   Show git commands while executing them
+f,[no]force     Force setting of gitsprint branches, even if already configured
+
+Use config file location
+local!   use repository config file
+global!  use global config file
+system!  use system config file
+file=    use given config file
+"
+    local gitflow_config_option should_check_existence branchcount guess
+	local master_branch develop_branch default_suggestion answer prefix
+
+	# Define flags
+	DEFINE_boolean 'force' false 'force setting of gitsprint branches, even if already configured' f
+    DEFINE_boolean 'local' false 'use repository config file'
+	DEFINE_boolean 'global' false 'use global config file'
+	DEFINE_boolean 'system' false 'use system config file'
+	DEFINE_string 'file' "" 'use given config file'
+
+    # Override defaults with values from config
+	gitsprint_override_flag_boolean   "init.defaults"   "defaults"
+
+	# Parse arguments
+	parse_args "$@"
+
+	if [ "$FLAGS_file" != "" ]; then
+		gitsprint_config_option="--file $FLAGS_file"
+	elif flag local; then
+		gitsprint_config_option="--local"
+	elif flag global; then
+		gitsprint_config_option="--global"
+	elif flag system; then
+		gitsprint_config_option="--system"
+	else
+		gitsprint_config_option=""
+	fi
+
+    if git_config_bool_exists "user.useconfigonly"; then
+		user_email=$(git config --get user.email)
+		user_name=$(git config --get user.name)
+		if [ -z "${user_email}" ] || [ -z "${user_name}" ]; then
+			die "Configuration useconfigonly is set but no name and/or email was set"
+		fi
+	fi
+}

@@ -56,6 +56,10 @@ usage() {
     echo "usage: git sprint <subcommand>"
     echo 
     echo "Available subcommands are:"
+    echo "    init      Initialize a new git repo with support for the sprint method."
+    echo "    config    Manage your git-sprint configuration."
+    echo "    create    Create a sprint branch"
+    echo "    end       Finish working with a sprint branch."
     echo "    version   Shows version information."
     echo
     echo "Try 'git sprint <subcommand> help' for details."

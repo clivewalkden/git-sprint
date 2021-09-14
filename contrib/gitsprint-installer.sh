@@ -28,7 +28,7 @@ DATAROOTDIR="$PREFIX/share"
 DOCDIR="$DATAROOTDIR/doc/gitsprint"
 
 EXEC_FILES="git-sprint"
-SCRIPT_FILES="git-sprint-create git-sprint-end git-sprint-version gitsprint-common gitsprint-shFlags"
+SCRIPT_FILES="git-sprint-config git-sprint-create git-sprint-end git-sprint-init git-sprint-version gitsprint-common gitsprint-shFlags"
 
 echo "### git-sprint no-make installer ###"
 
