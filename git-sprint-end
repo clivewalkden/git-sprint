@@ -45,7 +45,7 @@ D,[no]force_delete  Force delete sprint branch after finish
 	if [ "$VERSION" = "" ]; then
 		gitsprint_use_current_branch_sprint
 	fi
-    
+
     # As VERSION might have changed reset BRANCH with new VERSION
 	BRANCH=$PREFIX$VERSION
 
@@ -92,5 +92,24 @@ D,[no]force_delete  Force delete sprint branch after finish
 	fi
 	echo "- You are now on branch '$(git_current_branch)'"
 	echo
+}
+
+cmd_help() {
+	usage
+	exit 0
+}
+
+# Parse arguments and set common variables
+parse_args() {
+	FLAGS "$@" || exit $?
+	eval set -- "${FLAGS_ARGV}"
+
+	# Read arguments into global variables
+	if [ -z $1 ]; then
+		VERSION=''
+	else
+		VERSION=$1
+	fi
+	BRANCH=$PREFIX$VERSION
 }
 
