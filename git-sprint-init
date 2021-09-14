@@ -246,11 +246,11 @@ file=    use given config file
 	fi
 
 	# Starting Sprint number
-	if ! git config --get gitsprint.sprint_number >/dev/null 2>&1 || flag_force; then
+	if ! git config --get gitsprint.data.sprint_number >/dev/null 2>&1 || flag_force; then
 		if [ "FLAGS_sprint_number" != "" ]; then
 			default_suggestion=$(echo $FLAGS_sprint_number)
 		else
-			default_suggestion=$(git config --get --system gitsprint.sprint_number || git config --get --global gitsprint.sprint_number || echo '1')
+			default_suggestion=$(git config --get --system gitsprint.data.sprint_number || git config --get --global gitsprint.data.sprint_number || echo '1')
 		fi
 
 		printf "Sprint Start Number? [$default_suggestion] "
@@ -260,7 +260,7 @@ file=    use given config file
 			printf "\n"
 		fi
 		[ "$answer" = "-" ] && number= || number=${answer:-$default_suggestion}
-		git_do config $gitsprint_config_option gitsprint.sprint_number "$number"
+		git_do config $gitsprint_config_option gitsprint.data.sprint_number "$number"
 	fi
 
 	# Paths
