@@ -72,11 +72,11 @@ main() {
     fi
 
     # Use the shFlags project to parse the command line arguments
-	. "$GITFLOW_DIR/gitsprint-shFlags"
+	. "$GITSPRINT_DIR/gitsprint-shFlags"
 	FLAGS_PARENT="git sprint"
 
 	# Load common functionality
-	. "$GITFLOW_DIR/gitsprint-common"
+	. "$GITSPRINT_DIR/gitsprint-common"
 
 	# allow user to request git action logging
 	DEFINE_boolean 'showcommands' false 'Show actions taken (git commands)'
