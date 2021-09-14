@@ -42,7 +42,7 @@ Darwin)
 esac
 
 # Extra environment settings
-if [ -f ~/.gitflow_export ]; then
+if [ -f ~/.gitsprint_export ]; then
 	if grep -E 'GITSPRINT_FLAG_(SHOWCOMMANDS)' ~/.gitsprint_export > /dev/null; then
 		echo "Using environment variables for \"showcommands\" in ~/.gitsprint_export has deprecated, use git config instead."
 		echo ""

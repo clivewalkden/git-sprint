@@ -75,6 +75,9 @@ file=       Use given config file
     output=$(git config $gitsprint_config_option --get gitsprint.branch.development)
     echo "Branch name for \"next release\" development: $output "
 
+    output=$(git config $gitsprint_config_option --get gitsprint.prefix.sprint)
+	echo "Sprint branch prefix: $output "
+
     output=$(git config $gitsprint_config_option --get gitsprint.data.sprintNumber)
     echo "Current sprint number: $output "
 }
@@ -114,6 +117,10 @@ file=       Use given config file
         cfg_option="gitsprint.branch.development"
         txt="Branch name for \"next release\" development"
         ;;
+	sprint)
+		cfg_option="gitsprint.prefix.sprint"
+		txt="Sprint branch prefix"
+		;;
     sprintNumber)
         cfg_option="gitsprint.data.sprintNumber"
         txt="Current sprint number"

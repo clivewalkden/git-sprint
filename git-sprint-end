@@ -1,0 +1,96 @@
+initialize() {
+	require_git_repo
+	require_gitsprint_initialized
+	git config --get gitsprint.data.sprintnumber >/dev/null 2>&1 || die "Sprint number not set. Please run 'git sprint init'."
+	gitsprint_load_settings
+    PREFIX=$(git config --get gitsprint.prefix.sprint)
+}
+
+usage() {
+    OPTIONS_SPEC="\
+git sprint end [-h] <sprintNumber>
+
+Finish a sprint branch.
+---
+h,help              Show this help
+showcommands!       Show git commands while executing them
+"
+}
+
+cmd_default() {
+    OPTIONS_SPEC="\
+git sprint end [-h] [-D] <sprintNumber>
+
+Finish a sprint branch.
+---
+h,help              Show this help
+showcommands!       Show git commands while executing them
+D,[no]force_delete  Force delete sprint branch after finish
+"
+    # Define flags
+    DEFINE_boolean 'force_delete' false "force delete sprint branch after finish" D
+
+    # Override defaults with values from config
+    gitsprint_override_flag_boolean   "sprint.finish.force-delete"   "force_delete"
+
+    local remotebranchdeleted localbranchdeleted
+
+    remotebranchdeleted=$FLAGS_FALSE
+	localbranchdeleted=$FLAGS_FALSE
+
+    # Parse arguments
+	parse_args "$@"
+
+	# Use current branch if no version is given
+	if [ "$VERSION" = "" ]; then
+		gitsprint_use_current_branch_sprint
+	fi
+    
+    # As VERSION might have changed reset BRANCH with new VERSION
+	BRANCH=$PREFIX$VERSION
+
+    BASE_BRANCH=$(gitsprint_config_get_base_branch $BRANCH)
+	BASE_BRANCH=${BASE_BRANCH:-$DEVELOPMENT_BRANCH}
+	git_local_branch_exists "$BASE_BRANCH" || die "The base '$BASE_BRANCH' doesn't exists locally or is not a branch. Can't finish the release branch '$BRANCH'."
+
+
+    # Checkout base or development branch
+    if git_local_branch_exists "$BASE_BRANCH"; then
+        git_do checkout "$BASE_BRANCH"
+    else
+        git_do checkout "$DEVELOPMENT_BRANCH" || die "Could not check out branch '$DEVELOPMENT_BRANCH'."
+    fi
+
+    # Always delete remote first
+    if git_remote_branch_exists "$ORIGIN/$BRANCH"; then
+        git_remote_branch_delete "$BRANCH" && remotebranchdeleted=$FLAGS_TRUE
+    fi
+
+    # Delete local after remote to avoid warnings
+    if [ "$BRANCH" = "$(git_current_branch)" ]; then
+        git_do checkout "$BASE_BRANCH" || die "Could not check out branch '$BASE_BRANCH'."
+    fi
+    if flag force_delete; then
+        git_do branch -D "$BRANCH" && localbranchdeleted=$FLAGS_TRUE
+    else
+        git_do branch -d "$BRANCH" && localbranchdeleted=$FLAGS_TRUE
+    fi
+
+    echo
+	echo "Summary of actions:"
+	if noflag keep; then
+		if [ $localbranchdeleted -eq $FLAGS_TRUE ]; then
+			keepmsg="has been locally deleted"
+		else
+			keepmsg="is still locally available"
+		fi
+		if [ $remotebranchdeleted -eq $FLAGS_TRUE ]; then
+			keepmsg=$keepmsg"; it has been remotely deleted from '$ORIGIN'"
+		elif git_remote_branch_exists "$ORIGIN/$BRANCH"; then
+			keepmsg=$keepmsg"; it is still remotely available on '$ORIGIN'"
+		fi
+	fi
+	echo "- You are now on branch '$(git_current_branch)'"
+	echo
+}
+

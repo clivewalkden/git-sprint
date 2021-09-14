@@ -42,6 +42,7 @@ file=    use given config file
 	DEFINE_boolean 'global' false 'use global config file'
 	DEFINE_boolean 'system' false 'use system config file'
 	DEFINE_string 'file' "" 'use given config file'
+	DEFINE_string 'sprint' "" 'sprint branches' s
 	DEFINE_integer 'sprintNumber' '1' 'Start sprints at number' l
 
     # Override defaults with values from config
@@ -241,8 +242,26 @@ file=    use given config file
 
 	# Ask the user for naming conventions (starting number)
 	if flag force || \
+		! git config --get gitsprint.prefix.sprint >/dev/null 2>&1 ||
 		! git config --get gitsprint.data.sprintNumber >/dev/null 2>&1; then
 		echo
+	fi
+
+	# Sprint branches
+	if ! git config --get gitsprint.prefix.sprint >/dev/null 2>&1 || flag force; then
+	    if [ "$FLAGS_sprint" != "" ]; then
+	        default_suggestion=$(echo $FLAGS_sprint)
+        else
+		    default_suggestion=$(git config --get --system gitsprint.prefix.sprint || git config --get --global gitsprint.prefix.sprint || echo sprint/)
+        fi
+		printf "Sprint branches? [$default_suggestion] "
+		if noflag defaults; then
+			read answer
+		else
+			printf "\n"
+		fi
+		[ "$answer" = "-" ] && prefix= || prefix=${answer:-$default_suggestion}
+		git_do config $gitsprint_config_option gitsprint.prefix.sprint "$prefix"
 	fi
 
 	# Starting Sprint number

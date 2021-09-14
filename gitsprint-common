@@ -88,6 +88,17 @@ git_remote_branch_exists() {
 	[ -n "$(git for-each-ref --format='%(refname:short)' refs/remotes/$1)" ]
 }
 
+git_remote_branch_delete() {
+	[ -n "$1" ] || die "Missing branch name"
+	if git_remote_branch_exists "$ORIGIN/$1"; then
+		git_do push "$ORIGIN" :"$1" || die "Could not delete the remote $1 in $ORIGIN."
+		return 0
+	else
+		warn "Trying to delete the remote branch $1, but it does not exists in $ORIGIN"
+		return 1
+	fi
+}
+
 git_config_bool_exists() {
 	local value
 
@@ -158,7 +169,7 @@ gitsprint_load_settings() {
 	export DOT_GIT_DIR="$(cd ${DOT_GIT_DIR} >/dev/null 2>&1 && pwd)"
 	export HOOKS_DIR="$(git config --get gitsprint.path.hooks)"
 	export MASTER_BRANCH=$(git config --get gitsprint.branch.master)
-	export DEVELOP_BRANCH=$(git config --get gitsprint.branch.development)
+	export DEVELOPMENT_BRANCH=$(git config --get gitsprint.branch.development)
 	export ORIGIN=$(git config --get gitsprint.origin || echo origin)
 
 	GITSPRINT_CONFIG="$DOT_GIT_DIR/gitsprint_config"
@@ -174,6 +185,21 @@ gitsprint_load_settings() {
 	fi
 }
 
+gitsprint_use_current_branch_sprint() {
+	local current_branch
+
+	current_branch=$(git_current_branch)
+
+	if startswith "$current_branch" "$PREFIX"; then
+		BRANCH=$current_branch
+		VERSION=${BRANCH#$PREFIX}
+	else
+		warn "The current HEAD is no ${SUBCOMMAND} branch."
+		warn "Please specify a <version> argument."
+		exit 1
+	fi
+}
+
 #
 # Update the config with the base of a new git-sprint branch.
 #
@@ -186,6 +212,19 @@ gitsprint_config_set_base_branch() {
 	base=$1
 	branch=$2
 	$(git_do config --local "gitsprint.branch.$branch.base" $base)
+}
+
+#
+# Get the base of a branch as set by gitsprint_set_branch
+#
+# @param $1 Name of the branch
+# @return string|empty String when a base is found otherwise empty
+#
+gitsprint_config_get_base_branch() {
+	local branch
+
+	branch=$1
+	echo $(git config --local --get "gitsprint.branch.$branch.base")
 }
 
 #
