@@ -1,6 +1,6 @@
 GITSPRINT_VERSION=0.0.1-dev
 
-inititialize() {
+initialize() {
     # A function can not be empty. Comments count as empty
     local FOO=''
 }
