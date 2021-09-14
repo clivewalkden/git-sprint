@@ -265,7 +265,7 @@ file=    use given config file
 	fi
 
 	# Starting Sprint number
-	if ! git config --get gitsprint.data.sprintNumber >/dev/null 2>&1 || flag_force; then
+	if ! git config --get gitsprint.data.sprintNumber >/dev/null 2>&1 || flag force; then
 		if [ "FLAGS_sprintNumber" != "" ]; then
 			default_suggestion=$(echo $FLAGS_sprintNumber)
 		else
