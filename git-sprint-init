@@ -42,6 +42,7 @@ file=    use given config file
 	DEFINE_boolean 'global' false 'use global config file'
 	DEFINE_boolean 'system' false 'use system config file'
 	DEFINE_string 'file' "" 'use given config file'
+	DEFINE_integer 'sprint_number' 1 'Start sprints at number' l
 
     # Override defaults with values from config
 	gitsprint_override_flag_boolean   "init.defaults"   "defaults"
@@ -249,7 +250,7 @@ file=    use given config file
 		if [ "FLAGS_sprint_number" != "" ]; then
 			default_suggestion=$(echo $FLAGS_sprint_number)
 		else
-			default_suggestion=$(git config --get --system gitsprint.sprint_number || git config --get --global gitsprint.sprint_number || echo 1)
+			default_suggestion=$(git config --get --system gitsprint.sprint_number || git config --get --global gitsprint.sprint_number || echo '1')
 		fi
 
 		printf "Sprint Start Number? [$default_suggestion] "
