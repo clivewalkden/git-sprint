@@ -51,12 +51,41 @@ flags_help() {
 # Git specific common functionality
 # 
 
+git_local_branches() { git for-each-ref --sort refname --format='%(refname:short)' refs/heads; }
+
 git_current_branch() {
 	local branch_name
 
 	branch_name="$(git symbolic-ref --quiet HEAD)"
 	[ -z $branch_name ] && branch_name="(unnamed branch)" || branch_name="$(git for-each-ref --format='%(refname:short)' $branch_name)"
 	echo "$branch_name"
+}
+
+git_repo_is_headless() {
+	! git rev-parse --quiet --verify HEAD >/dev/null 2>&1
+}
+
+git_is_clean_working_tree() {
+	git rev-parse --verify HEAD >/dev/null || exit 1
+	git update-index -q --ignore-submodules --refresh
+
+	# Check for unstaged changes
+	git diff-files --quiet --ignore-submodules || return 1
+
+	# Check for Uncommited changes
+	git diff-index --cached --quiet --ignore-submodules HEAD -- || return 2
+
+	return 0
+}
+
+git_local_branch_exists() {
+	[ -n "$1" ] || die "Missing branch name"
+	[ -n "$(git for-each-ref --format='%(refname:short)' refs/heads/$1)" ]
+}
+
+git_remote_branch_exists() {
+	[ -n "$1" ] || die "Missing branch name"
+	[ -n "$(git for-each-ref --format='%(refname:short)' refs/remotes/$1)" ]
 }
 
 
@@ -70,7 +99,7 @@ git_current_branch() {
 gitsprint_override_flag_boolean() {
 	local _variable
 
-	_variable=$(git config --bool --get gitflow.$1 2>&1)
+	_variable=$(git config --bool --get gitsprint.$1 2>&1)
 	case $? in
 	0)
 		[ "${_variable}" = "true" ] && eval "FLAGS_${2}=${FLAGS_TRUE}" || eval "FLAGS_${2}=${FLAGS_FALSE}"
@@ -81,4 +110,56 @@ gitsprint_override_flag_boolean() {
 	esac
 	unset _variable
 	return ${FLAGS_TRUE}
+}
+
+#
+# gitsprint specific common functionality
+#
+
+# Functions used to check if the repository is git-sprint enabled
+gitsprint_has_master_configured() {
+	local master
+
+	master=$(git config --get gitsprint.branch.master)
+	[ "$master" != "" ] && git_local_branch_exists "$master"
+}
+
+gitsprint_has_development_configured() {
+	local development
+
+	development=$(git config --get gitsprint.branch.development)
+	[ "$development" != "" ] && git_local_branch_exists "$development"
+}
+
+gitsprint_is_initialized() {
+	gitsprint_has_master_configured                    && \
+	gitsprint_has_development_configured               && \
+	[ "$(git config --get gitsprint.branch.master)" != "$(git config --get gitsprint.branch.development)" ] && \
+	git config --get-regexp gitsprint.prefix >/dev/null 2>&1
+}
+
+#
+# Assertions for use in git-sprint subcommands
+require_clean_working_tree() {
+	local result
+
+	git_is_clean_working_tree
+	result=$?
+	if [ $result -eq 1 ]; then
+		die "Working tree contains unstaged changes. Aborting."
+	fi
+	if [ $result -eq 2 ]; then
+		die "Index contains uncommited changes. Aborting."
+	fi
+}
+
+#
+# Show commands if flag is set.
+#
+git_do() {
+	if flag showcommands; then
+		echo "git $@" >&2
+	fi
+
+	git "$@"
 }

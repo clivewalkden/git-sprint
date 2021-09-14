@@ -17,13 +17,14 @@ parse_args() {
 
 cmd_default() {
     OPTIONS_SPEC="\
-git sprint init [-h] [-f]
+git sprint init [-h] [-d] [-f]
 
 Setup a git repository for git sprint usage. Can also be used to start a git repository.
 --
-h,help!         Show this help
-showcommands!   Show git commands while executing them
-f,[no]force     Force setting of gitsprint branches, even if already configured
+h,help!             Show this help
+showcommands!       Show git commands while executing them
+d,[no]defaults      Use default branch naming conventions
+f,[no]force         Force setting of gitsprint branches, even if already configured
 
 Use config file location
 local!   use repository config file
@@ -31,11 +32,12 @@ global!  use global config file
 system!  use system config file
 file=    use given config file
 "
-    local gitflow_config_option should_check_existence branchcount guess
-	local master_branch develop_branch default_suggestion answer prefix
+    local gitsprint_config_option should_check_existence branchcount guess
+	local master_branch development_branch default_suggestion answer number
 
 	# Define flags
 	DEFINE_boolean 'force' false 'force setting of gitsprint branches, even if already configured' f
+	DEFINE_boolean 'defaults' false 'use default branch naming conventions' d
     DEFINE_boolean 'local' false 'use repository config file'
 	DEFINE_boolean 'global' false 'use global config file'
 	DEFINE_boolean 'system' false 'use system config file'
@@ -66,4 +68,218 @@ file=    use given config file
 			die "Configuration useconfigonly is set but no name and/or email was set"
 		fi
 	fi
+
+	if ! git rev-parse --git-dir >/dev/null 2>&1; then
+		git_do init
+	else
+		# Assure that we are not working in a repo with local changes
+		git_repo_is_headless || require_clean_working_tree
+	fi
+
+	# Running git sprint init on an already initialized repo is fine
+	if gitsprint_is_initialized && ! flag force; then
+		warn "Already initialized for gitsprint."
+		warn "To force reinitialization, use: git sprint init -f"
+		exit 0
+	fi
+
+	if flag defaults; then
+		warn "Using default branch names."
+	fi
+
+	# Add a master branch if no such branch exists yet
+
+	if gitsprint_has_master_configured && ! flag force; then
+		master_branch=$(git config --get gitsprint.branch.master)
+	else
+		# Two cases are distinguished:
+		# 1. A fresh git repo (without any branches)
+		#    We will create a new master/development branch for the user
+		# 2. Some branches do already exist
+		#    We will disallow creation of new master/development branches and
+		#    rather allow to use existing branches for git-sprint.
+		branch_count=$(git_local_branches | wc -l)
+		if [ "$branch_count" -eq 0 ]; then
+			echo "No branches exist yet. Base branches must be created now."
+			should_check_existence=NO
+			default_suggestion=$(git config --get gitsprint.branch.master || echo master)
+		else
+			echo
+			echo "Which branch should be used for bringing forth production releases?"
+			git_local_branches | sed 's/^.*$/   - &/g'
+
+			should_check_existence=YES
+			default_suggestion=
+			for guess in $(git config --get gitsprint.branch.master) 'production' 'main' 'master'; do
+				if git_local_branch_exists "$guess"; then
+					default_suggestion="$guess"
+					break
+				fi
+			done
+
+		fi
+
+		if [ -z $default_suggestion ] && flag defaults; then
+				should_check_existence=YES
+				default_suggestion=$(git config --get gitsprint.branch.master || echo master)
+		fi
+
+		printf "Branch name for production releases: [$default_suggestion] "
+		if noflag defaults; then
+			read answer
+		else
+			printf "\n"
+		fi
+		master_branch=${answer:-$default_suggestion}
+
+		# Check existence in case of an already existing repo
+		if [ "$should_check_existence" = "YES" ]; then
+			# If no local branch exists and a remote branch of the same
+			# name exists, checkout that branch and use it for master
+			if ! git_local_branch_exists "$master_branch" && git_remote_branch_exists "origin/$master_branch"; then
+				git_do branch "$master_branch" "origin/$master_branch" >/dev/null 2>&1
+			elif ! git_local_branch_exists "$master_branch"; then
+				die "Local branch '$master_branch' does not exist."
+			fi
+		fi
+
+		# Store the name of the master branch
+		git_do config $gitsprint_config_option gitsprint.branch.master "$master_branch"
+	fi
+
+	# Add a development branch if no such branch exists yet
+	if gitsprint_has_development_configured && ! flag force; then
+		development_branch=$(git config --get gitsprint.branch.development)
+	else
+		# Again, the same two cases as with the master selection are
+		# considered (fresh repo or repo that contains branches)
+		branch_count=$(git_local_branches | grep -v "^${master_branch}\$" | wc -l)
+		if [ "$branch_count" -eq 0 ]; then
+			should_check_existence=NO
+			default_suggestion=$(git config --get gitsprint.branch.development || echo development)
+		else
+			echo
+			echo "Which branch should be used for integration of the \"next release\"?"
+			git_local_branches | grep -v "^${master_branch}\$" | sed 's/^.*$/   - &/g'
+
+			should_check_existence=YES
+			default_suggestion=
+			for guess in $(git config --get gitsprint.branch.development) 'develop' 'development' 'int' 'integration' 'master'; do
+				if git_local_branch_exists "$guess" && [ "$guess" != "$master_branch" ]; then
+					default_suggestion="$guess"
+					break
+				fi
+			done
+		fi
+
+		if [ -z $default_suggestion ] && flag defaults; then
+			should_check_existence=YES
+			default_suggestion=$(git config --get gitsprint.branch.development || echo development)
+		fi
+
+		printf "Branch name for \"next release\" development: [$default_suggestion] "
+		if noflag defaults; then
+			read answer
+		else
+			printf "\n"
+		fi
+		development_branch=${answer:-$default_suggestion}
+
+		if [ "$master_branch" = "$development_branch" ]; then
+			die "Production and integration branches should differ."
+		fi
+
+		# Check existence in case of an already existing repo
+		if [ "$should_check_existence" = "YES" ]; then
+			git_local_branch_exists "$development_branch" || die "Local branch '$development_branch' does not exist."
+		fi
+
+		# Store the name of the development branch
+		git_do config $gitsprint_config_option gitsprint.branch.development "$development_branch"
+	fi
+
+	# Creation of HEAD
+	# ----------------
+	# We create a HEAD now, if it does not exist yet (in a fresh repo). We need
+	# it to be able to create new branches.
+	local created_gitsprint_branch=0
+	if ! git rev-parse --quiet --verify HEAD >/dev/null 2>&1; then
+		git_do symbolic-ref HEAD "refs/heads/$master_branch"
+		git_do commit --allow-empty --quiet -m "Initial commit"
+		created_gitsprint_branch=1
+	fi
+
+	# Creation of master
+	# ------------------
+	# At this point, there always is a master branch: either it existed already
+	# (and was picked interactively as the production branch) or it has just
+	# been created in a fresh repo
+
+	# Creation of development
+	# -------------------
+	# The development branch possibly does not exist yet.  This is the case when,
+	# in a git init'ed repo with one or more commits, master was picked as the
+	# default production branch and development was "created".  We should create
+	# the development branch now in that case (we base it on master, of course)
+	if ! git_local_branch_exists "$development_branch"; then
+		if git_remote_branch_exists "origin/$development_branch"; then
+			git_do branch "$development_branch" "origin/$development_branch" >/dev/null 2>&1
+		else
+			git_do branch --no-track "$development_branch" "$master_branch"
+		fi
+		created_gitsprint_branch=1
+	fi
+
+	# Assert the git-sprint repo has been correctly initialized
+	gitsprint_is_initialized
+
+	# Switch to development branch if its newly created
+	if [ $created_gitsprint_branch -eq 1 ]; then
+		git_do checkout -q "$development_branch" || die "Could not check out branch '$development_branch'."
+	fi
+
+	# Ask the user for naming conventions (starting number)
+	if flag force || \
+		! git config --get gitsprint.sprint_number >/dev/null 2>&1; then
+		echo
+	fi
+
+	# Starting Sprint number
+	if ! git config --get gitsprint.sprint_number >/dev/null 2>&1 || flag_force; then
+		if [ "FLAGS_sprint_number" != "" ]; then
+			default_suggestion=$(echo $FLAGS_sprint_number)
+		else
+			default_suggestion=$(git config --get --system gitsprint.sprint_number || git config --get --global gitsprint.sprint_number || echo 1)
+		fi
+
+		printf "Sprint Start Number? [$default_suggestion] "
+		if noflag defaults; then
+			read answer
+		else
+			printf "\n"
+		fi
+		[ "$answer" = "-" ] && number= || number=${answer:-$default_suggestion}
+		git_do config $gitsprint_config_option gitsprint.sprint_number "$number"
+	fi
+
+	# Paths
+	if ! git config --get gitsprint.path.hooks >/dev/null 2>&1 || flag force; then
+		DOT_GIT_DIR=$(git rev-parse --git-dir)
+		DOT_GIT_DIR=$(cd "$DOT_GIT_DIR" >/dev/null 2>&1 && pwd)
+		default_suggestion=$(git config --get gitsprint.path.hooks || git config --get core.hooksPath || echo "$DOT_GIT_DIR"/hooks)
+		printf "Hooks and filters directory? [$default_suggestion] "
+		if noflag defaults; then
+			read answer
+		else
+			printf "\n"
+		fi
+		[ "$answer" = "-" ] && hooks_dir= || hooks_dir=${answer:-$default_suggestion}
+		git_do config $gitsprint_config_option gitsprint.path.hooks "$hooks_dir"
+	fi
+
+}
+
+cmd_help() {
+	usage
+	exit 0
 }
