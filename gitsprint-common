@@ -148,7 +148,7 @@ gitsprint_is_initialized() {
 	gitsprint_has_master_configured                    && \
 	gitsprint_has_development_configured               && \
 	[ "$(git config --get gitsprint.branch.master)" != "$(git config --get gitsprint.branch.development)" ] && \
-	git config --get-regexp gitsprint.prefix >/dev/null 2>&1
+	git config --get-regexp gitsprint.data >/dev/null 2>&1
 }
 
 # Loading settings that can be overridden using git config
@@ -158,7 +158,7 @@ gitsprint_load_settings() {
 	export DOT_GIT_DIR="$(cd ${DOT_GIT_DIR} >/dev/null 2>&1 && pwd)"
 	export HOOKS_DIR="$(git config --get gitsprint.path.hooks)"
 	export MASTER_BRANCH=$(git config --get gitsprint.branch.master)
-	export DEVELOP_BRANCH=$(git config --get gitsprint.branch.develop)
+	export DEVELOP_BRANCH=$(git config --get gitsprint.branch.development)
 	export ORIGIN=$(git config --get gitsprint.origin || echo origin)
 
 	GITSPRINT_CONFIG="$DOT_GIT_DIR/gitsprint_config"
