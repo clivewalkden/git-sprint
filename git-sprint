@@ -89,5 +89,52 @@ main() {
     if [ "${SUBCOMMAND}" = "create" ] || [ "${SUBDOMMAND}" = "end" ]; then
         _current_branch=$(git_current_branch)
     fi
+
+	if [ ! -e "$GITFLOW_DIR/git-flow-$SUBCOMMAND" ]; then
+		usage
+		exit 1
+	fi
+
+	# Run command
+	. "$GITSPRINT_DIR/git-sprint-$SUBCOMMAND"
+	FLAGS_PARENT="git sprint $SUBCOMMAND"
+
+	if [ -z "${SUBACTION}" ]; then
+		# If the first argument is a flag, it starts with '-', we interpret this
+		# argument as a flag for the default command.
+		if startswith "$1" "-"; then
+			SUBACTION="default"
+		elif [ -z "$1" ]; then
+			SUBACTION="default"
+		else
+			SUBACTION="$1"
+			shift
+			# Do not allow direct calls to subactions with an underscore.
+			if $(contains "$SUBACTION" "_"); then
+				warn "Unknown subcommand: '$SUBACTION'"
+				usage
+				exit 1
+			fi
+			# Replace the dash with an underscore as bash doesn't allow a dash
+			# in the function name.
+			SUBACTION=$(echo "$SUBACTION" |tr '-' '_')
+		fi
+	fi
+
+	if ! type "cmd_$SUBACTION" >/dev/null 2>&1; then
+		warn "Unknown subcommand: '$SUBACTION'"
+		usage
+		exit 1
+	fi
+
+	# Run the specified action
+	if [ $SUBACTION != "help" ] && [ $SUBCOMMAND != "init" ]; then
+		initialize
+	fi
+	if [ $SUBACTION != 'default' ]; then
+		FLAGS_PARENT="git sprint $SUBCOMMAND $SUBACTION"
+	fi
+
+	cmd_$SUBACTION "$@" "${_short_branch_name}"
 }
 main "$@"
