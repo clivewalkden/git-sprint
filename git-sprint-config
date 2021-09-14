@@ -1,0 +1,244 @@
+initialize() {
+    require_git_repo
+    require_gitsprint_initialized
+    gitsprint_load_settings
+}
+
+usage() {
+    OPTIONS_SPEC="\
+git sprint config [list]
+git sprint config set
+git sprint config base
+
+Manage the git-sprint configuration.
+
+For more specific help type the command followed by --help
+--
+"
+    flags_help
+}
+
+parse_args() {
+    # Parse options
+    FLAGS "$@" || exit $?
+    eval set -- "${FLAGS_ARGV}"
+
+    OPTION=$(echo $1|tr '[:upper:]' '[:lower:]')
+
+    if [ "$FLAGS_file" != "" ]; then
+        gitsprint_config_option="--file '$FLAGS_file'"
+    elif flag local; then
+        gitsprint_config_option="--local"
+    elif flag global; then
+        gitsprint_config_option="--global"
+    elif flag system; then
+        gitsprint_config_option="--system"
+    else
+        gitsprint_config_option=""
+    fi
+}
+
+# Default entry when no SUBACTION is given
+cmd_default() {
+    cmd_list "$@"
+}
+
+cmd_list() {
+    OPTIONS_SPEC="\
+git sprint config [list]
+
+Show the git-sprint configurations
+--
+h,help!        Show this help
+
+Use config file location
+local!      Use repository config file
+global!     Use global config file
+system!     Use system config file
+file=       Use given config file
+"
+
+    local output
+
+    # Define flags
+    DEFINE_boolean 'local' false 'use repository config file'
+    DEFINE_boolean 'global' false 'use global config file'
+    DEFINE_boolean 'system' false 'use system config file'
+    DEFINE_string 'file' "" 'use given config file'
+
+    # Parse arguments
+    parse_args "$@"
+
+    output=$(git config $gitsprint_config_option --get gitsprint.branch.master)
+    echo "Branch name for production releases: $output "
+
+    output=$(git config $gitsprint_config_option --get gitsprint.branch.development)
+    echo "Branch name for \"next release\" development: $output "
+
+    output=$(git config $gitsprint_config_option --get gitsprint.data.sprintNumber)
+    echo "Current sprint number: $output "
+}
+
+cmd_set() {
+    OPTIONS_SPEC="\
+git sprint config set <option> <value>
+
+Set the git-sprint configuration option to the given value
+--
+h,help!     Show this help
+local!      Use repository config file
+global!     Use global config file
+system!     Use system config file
+file=       Use given config file
+"
+
+    local value cfg_option txt
+
+    # Define flags
+    DEFINE_boolean 'local' false 'use repository config file'
+    DEFINE_boolean 'global' false 'use global config file'
+    DEFINE_boolean 'system' false 'use system config file'
+    DEFINE_string 'file' "" 'use given config file'
+
+    # Parse arguments
+    parse_args "$@"
+    eval set -- "${FLAGS_ARGV}"
+    value=$2
+
+    case $OPTION in
+    master)
+        cfg_option="gitsprint.branch.master"
+        txt="Branch name for production releases"
+        ;;
+    development)
+        cfg_option="gitsprint.branch.development"
+        txt="Branch name for \"next release\" development"
+        ;;
+    sprintNumber)
+        cfg_option="gitsprint.data.sprintNumber"
+        txt="Current sprint number"
+        ;;
+    *)
+        die_help "Invalid option given."
+        ;;
+    esac
+
+    [ -n "$value" ] || die_help "No value given"
+
+    if [ $OPTION = "master" ]; then
+        development_branch=$(git config --get gitsprint.branch.development)
+        if [ "$value" = development_branch ]; then
+            die "Production and \"next release\" branch should differ."
+        fi
+
+        if ! git_local_branch_exists "$value" && git_remote_branch_exists "origin/$value"; then
+            git_do branch "$value" "origin/$value" >dev/null 2>&1
+        elif ! git_local_branch_exists "$value"; then
+            die "Local branch '$value' does not exist."
+        fi
+    fi
+
+	if [ $OPTION = "development" ]; then
+		master_branch=$(git config --get gitsprint.branch.master)
+		if [ "$value" = $master_branch ]; then
+			die "Production and \"next release\" branch should differ."
+		fi
+
+		if ! git_local_branch_exists "$value" && git_remote_branch_exists "origin/$value"; then
+			git_do branch "$value" "origin/$value" >/dev/null 2>&1
+		elif ! git_local_branch_exists "$value"; then
+			die "Local branch '$value' does not exist."
+		fi
+	fi
+
+    if [ $OPTION = "sprintNumber" ]; then
+        current_value=$(git config --get gitsprint.data.sprintNumber)
+        if [ "$value" < current_value ]; then
+            die "Sprint Number must be higher than current value."
+        fi
+    fi
+
+    git_do config $gitsprint_config_option $cfg_option "$value"
+
+    case $? in
+    0)
+        ;;
+    3)
+        die "The config file is invalid."
+        ;;
+    4)
+        die "Can not write to config file."
+        ;;
+    *)
+        die "Unknown return code [$?]. Please file an issue about this error."
+        ;;
+    esac
+
+    echo 
+    echo "Summary of actions:"
+    if [ "$FLAGS_file" != "" ]; then
+        echo "- Using configuration file '$FLAGS_file'"
+    elif flag local; then
+		echo "- Using repository specific configuration file."
+	elif flag global; then
+		echo "- Using user-specific configuration file."
+	elif flag system; then
+		echo "- Using system-wide configuration file."
+	else
+		echo "- Using repository specific configuration file."
+	fi
+	echo "- $txt set to $value"
+	echo
+}
+
+cmd_base() {
+    OPTIONS_SPEC="\
+git sprint config base [<options>] <branch> [<base>]
+Set the given <base> for the given <branch>
+--
+h,help!           Show this help
+get               Get the base for the given branch (default behavior).
+set               Set the given base for the given branch.
+"
+
+	DEFINE_boolean 'get' true 'Get the base for the given branch (default behavior).'
+	DEFINE_boolean 'set' false 'Set the given base for the given branch.'
+
+	FLAGS "$@" || exit $?
+	eval set -- "${FLAGS_ARGV}"
+
+	if flag 'set'; then
+		[ -z "$1" ] && die_help 'No branch given'
+		[ -z "$2" ] && die_help 'No base given'
+		__set_base "$@"
+	else
+		[ -z "$1" ] && die_help 'No branch given'
+		__get_base "$@"
+	fi
+}
+
+cmd_help() {
+    usage
+    exit 0
+}
+
+# Private functions
+__set_base () {
+
+	require_branch "$1"
+	git_branch_exists "$2" || die_help "Given base doesn't exists or is not a branch."
+
+	gitsprint_config_set_base_branch "$2" "$1"
+}
+
+__get_base () {
+	local base
+
+	base=$(gitsprint_config_get_base_branch "$1")
+	echo
+	if [ -z "$base" ]; then
+		echo "Base branch not set for branch '"$1"'"
+	else
+		echo "Base branch for branch '"$1"' set to '"$base"'"
+	fi
+}
