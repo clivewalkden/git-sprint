@@ -11,6 +11,37 @@ escape() {
     echo "$1" | sed 's/\([\.\$\*]\)/\\\1/g'
 }
 
+#
+# String contains function
+# $1 haystack
+# $2 Needle
+#
+contains() {
+	local return
+
+	case $1 in
+		*$2*)
+			return=$FLAGS_TRUE
+			;;
+		*)
+			return=$FLAGS_FALSE
+			;;
+	esac
+	return $return
+}
+
+# Basic math
+min() { [ "$1" -le "$2" ] && echo "$1" || echo "$2"; }
+max() { [ "$1" -ge "$2" ] && echo "$1" || echo "$2"; }
+
+# Basic string matching
+startswith() { [ "$1" != "${1#$2}" ]; }
+endswith() { [ "$1" != "${1%$2}" ]; }
+
+# Convenience functions for checking shFlags flags
+flag() { local FLAG; eval FLAG='$FLAGS_'$1; [ $FLAG -eq $FLAGS_TRUE ]; }
+noflag() { local FLAG; eval FLAG='$FLAGS_'$1; [ $FLAG -ne $FLAGS_TRUE ]; }
+
 flags_help() {
 	eval "$( echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- "-h" || echo exit $? )"
 }
