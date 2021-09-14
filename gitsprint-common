@@ -14,3 +14,40 @@ escape() {
 flags_help() {
 	eval "$( echo "$OPTIONS_SPEC" | git rev-parse --parseopt -- "-h" || echo exit $? )"
 }
+
+
+#
+# Git specific common functionality
+# 
+
+git_current_branch() {
+	local branch_name
+
+	branch_name="$(git symbolic-ref --quiet HEAD)"
+	[ -z $branch_name ] && branch_name="(unnamed branch)" || branch_name="$(git for-each-ref --format='%(refname:short)' $branch_name)"
+	echo "$branch_name"
+}
+
+
+# gitsprint_override_flag_boolean()
+#
+# Override a boolean flag
+#
+# Param $1: string The name of the config variable e.g. "feature.start.fetch"
+# Param $2: string The flag name
+#
+gitsprint_override_flag_boolean() {
+	local _variable
+
+	_variable=$(git config --bool --get gitflow.$1 2>&1)
+	case $? in
+	0)
+		[ "${_variable}" = "true" ] && eval "FLAGS_${2}=${FLAGS_TRUE}" || eval "FLAGS_${2}=${FLAGS_FALSE}"
+		;;
+	128)
+		die "${_variable}"
+		;;
+	esac
+	unset _variable
+	return ${FLAGS_TRUE}
+}
