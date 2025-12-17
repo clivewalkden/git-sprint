@@ -1,0 +1,10 @@
+#!/bin/sh
+# Example post-commit hook to update the VERSION file.
+# Copy this to .git/hooks/post-commit or run contrib/install_update_version_hook.sh
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$REPO_ROOT" ]; then
+  exit 0
+fi
+
+"$REPO_ROOT/scripts/update_version_hook.sh"

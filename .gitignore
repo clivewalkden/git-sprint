@@ -1,0 +1,9 @@
+node_modules/
+gitsprint/
+.DS_Store
+.env
+dist/
+build/
+.vscode/
+.idea/
+*.log

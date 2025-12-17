@@ -1,8 +1,8 @@
-GITSPRINT_VERSION=0.0.1-dev
+#!/bin/sh
+# git-sprint version command
 
 initialize() {
-    # A function can not be empty. Comments count as empty
-    local FOO=''
+    :
 }
 
 usage() {
@@ -18,7 +18,15 @@ For more specific help type the command followed by --help
 }
 
 cmd_default() {
-    echo "$GITSPRINT_VERSION"
+    # Use the helper script to compute current version
+    if [ -x "$(dirname "$0")/scripts/get_version.sh" ]; then
+        "$(dirname "$0")/scripts/get_version.sh"
+    elif [ -x "./scripts/get_version.sh" ]; then
+        ./scripts/get_version.sh
+    else
+        # Fallback: try git directly
+        git describe --tags --abbrev=0 2>/dev/null || echo "0.0.0"
+    fi
 }
 
 cmd_help() {
