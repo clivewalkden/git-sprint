@@ -38,10 +38,10 @@ file=    use given config file
 	# Define flags
 	DEFINE_boolean 'force' false 'force setting of gitsprint branches, even if already configured' f
 	DEFINE_boolean 'defaults' false 'use default branch naming conventions' d
-    DEFINE_boolean 'local' false 'use repository config file'
-	DEFINE_boolean 'global' false 'use global config file'
-	DEFINE_boolean 'system' false 'use system config file'
-	DEFINE_string 'file' "" 'use given config file'
+	DEFINE_boolean 'local' false 'use repository config file' L
+	DEFINE_boolean 'global' false 'use global config file' G
+	DEFINE_boolean 'system' false 'use system config file' S
+	DEFINE_string 'file' "" 'use given config file' F
 	DEFINE_string 'sprint' "" 'sprint branches' s
 	DEFINE_integer 'sprintNumber' '1' 'Start sprints at number' l
 
