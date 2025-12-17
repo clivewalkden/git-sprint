@@ -111,7 +111,7 @@ main() {
 	. "$GITSPRINT_DIR/gitsprint-common"
 
 	# allow user to request git action logging
-	DEFINE_boolean 'showcommands' false 'Show actions taken (git commands)'
+	DEFINE_boolean 'showcommands' false 'Show actions taken (git commands)' x
 	# but if the user prefers that the logging is always on,
 	# use the environmental variables.
 	gitsprint_override_flag_boolean 'showcommands' 'showcommands'
