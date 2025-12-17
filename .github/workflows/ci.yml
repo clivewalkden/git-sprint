@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [ development, main ]
+  pull_request:
+    branches: [ development, main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y shellcheck bats
+
+      - name: Run ShellCheck
+        run: |
+          echo "Running shellcheck on project scripts"
+          scripts=$(ls | grep -E '(^git-sprint|gitsprint-).*' || true)
+          if [ -n "$scripts" ]; then
+            shellcheck $scripts
+          else
+            echo "No matching scripts to lint"
+          fi
+
+      - name: Run bats tests
+        run: |
+          if [ -d test ]; then
+            bats test
+          else
+            echo "No tests directory"
+          fi

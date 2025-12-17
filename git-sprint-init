@@ -121,7 +121,7 @@ file=    use given config file
 
 		fi
 
-		if [ -z $default_suggestion ] && flag defaults; then
+		if [ -z "${default_suggestion}" ] && flag defaults; then
 				should_check_existence=YES
 				default_suggestion=$(git config --get gitsprint.branch.master || echo master)
 		fi
@@ -174,7 +174,7 @@ file=    use given config file
 			done
 		fi
 
-		if [ -z $default_suggestion ] && flag defaults; then
+		if [ -z "${default_suggestion}" ] && flag defaults; then
 			should_check_existence=YES
 			default_suggestion=$(git config --get gitsprint.branch.development || echo development)
 		fi

@@ -57,7 +57,7 @@ git_current_branch() {
 	local branch_name
 
 	branch_name="$(git symbolic-ref --quiet HEAD)"
-	[ -z $branch_name ] && branch_name="(unnamed branch)" || branch_name="$(git for-each-ref --format='%(refname:short)' $branch_name)"
+	[ -z "${branch_name}" ] && branch_name="(unnamed branch)" || branch_name="$(git for-each-ref --format='%(refname:short)' "${branch_name}")"
 	echo "$branch_name"
 }
 
@@ -175,7 +175,7 @@ gitsprint_load_settings() {
 	GITSPRINT_CONFIG="$DOT_GIT_DIR/gitsprint_config"
 	if [ -f "$GITSPRINT_CONFIG" ]; then # move all settings from old .git/gitsprint_config to the local conf.
 		warn "Migrating old \"$GITSPRINT_CONFIG\" to the \"--local\" repo config."
-		_config_lines=`git config --list --file="$GITSPRINT_CONFIG"`;
+		_config_lines=$(git config --list --file="$GITSPRINT_CONFIG");
 		for _config_line in ${_config_lines}; do
 			_key=${_config_line%=*}
 			_value=${_config_line#=*}
@@ -260,6 +260,12 @@ require_branch() {
 # Show commands if flag is set.
 #
 git_do() {
+	if [ "${GITSPRINT_DRYRUN:-}" = "yes" ]; then
+		# In dry-run mode, show the command and do not execute it.
+		echo "DRY-RUN: git $@" >&2
+		return 0
+	fi
+
 	if flag showcommands; then
 		echo "git $@" >&2
 	fi

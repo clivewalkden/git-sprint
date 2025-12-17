@@ -51,7 +51,7 @@ help)
 	exit
 	;;
 install)
-	if [ -z $2 ]; then
+	if [ -z "$2" ]; then
 		usage
 		exit
 	fi

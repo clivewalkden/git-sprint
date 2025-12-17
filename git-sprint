@@ -66,11 +66,42 @@ usage() {
 }
 
 main() {
-    if [ $# -lt 1 ]; then
-        usage
+	# Handle top-level/global flags when present before the subcommand
+	if [ $# -lt 1 ]; then
+		usage
 		echo "no subcommands"
-        exit 1
-    fi
+		exit 1
+	fi
+
+	# If the first argument looks like a flag, handle global flags
+	case "$1" in
+		-h|--help)
+			usage
+			exit 0
+			;;
+		--version)
+			# delegate to the version subcommand if present
+			if [ -e "$GITSPRINT_DIR/git-sprint-version" ]; then
+				. "$GITSPRINT_DIR/git-sprint-version"
+				cmd_default
+				exit 0
+			else
+				echo "version information not available"
+				exit 0
+			fi
+			;;
+		--dry-run)
+			export GITSPRINT_DRYRUN=yes
+			shift
+			;;
+		-v|--verbose)
+			export DEBUG=yes
+			shift
+			;;
+		--)
+			shift
+			;;
+	esac
 
     # Use the shFlags project to parse the command line arguments
 	. "$GITSPRINT_DIR/gitsprint-shFlags"
